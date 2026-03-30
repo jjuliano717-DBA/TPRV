@@ -109,7 +109,7 @@ with st.sidebar:
 
 # --- ENTERPRISE PORTALS (TABS) ---
 st.title("🛡️ TPRV: Enterprise Data Sandbox")
-tab1, tab2 = st.tabs(["🤖 AI Gatekeeper & Prompt Engine", "📊 Data Structure Explorer"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["🤖 AI Gatekeeper & Prompt Engine", "🤝 Partner Data Hub", "⚖️ Litigation & Audit", "📊 Network Status", "🗂️ Data Schema Explorer"])
 
 # --- TAB 1: AI GATEKEEPER & PROMPT ENGINE ---
 with tab1:
@@ -132,9 +132,15 @@ with tab1:
         """, unsafe_allow_html=True)
 
     with col_chat:
-        st.markdown("### Copilot Interface")
-        
-        prompt = st.chat_input("Prompt Enterprise Copilot... (Type anything if API Key is active)") 
+        st.markdown("### Executive Quick Prompts")
+        cols = st.columns(2)
+        quick = None
+        if cols[0].button("Query Cyber Incident Plans"): quick = "What is the Cyber Attack Incident Recovery Plan Test activities count in this time period?"
+        if cols[0].button("Execute DORA/STP Payments Sync"): quick = "Execute DORA Smart Contract Reconciliation for Chiro Payments"
+        if cols[1].button("Analyze Healthcare Billing"): quick = "What is the Emergency Room Treatment Services count in this time period?"
+        if cols[1].button("Analyze COI Exclusions"): quick = "Read Certificates of Insurance and identify underwriting exclusions."
+
+        prompt = st.chat_input("Prompt Enterprise Copilot... (Type anything if API Key is active)") or quick
 
         if prompt:
             st.chat_message("user").write(prompt)
@@ -192,8 +198,83 @@ with tab1:
                     
                 status.update(label="Authorized", state="complete")
 
-# --- TAB 2: DATA STRUCTURE EXPLORER ---
+# --- TAB 2: PARTNER DATA HUB ---
 with tab2:
+    st.markdown("### 🤝 Partner Services Integration Hub")
+    st.write("Partners update service data here, linking directly to the Human Purchaser to drive recurring revenue tracking.")
+    
+    with st.container():
+        st.markdown('<div class="metric-box">', unsafe_allow_html=True)
+        col1, col2 = st.columns(2)
+        with col1:
+            partner_name = st.selectbox("Select Partner API", ["Biddle Consulting (EEO)", "National Healthcare TPA", "Sedgwick Claims Admin"])
+            service_name = st.text_input("Service/Product Update Name", "2026 Enhanced Wellness Benefits Plan")
+        with col2:
+            target_human = st.selectbox("Link to Human Purchaser (Role)", ["Jane Doe (Claims Adjuster)", "John Smith (VP HR)"])
+            if st.button("Push Data to TPRV Network"):
+                s["partner_services"].append({"Partner": partner_name, "Service": service_name, "Purchaser": target_human, "Date": datetime.now().strftime("%Y-%m-%d")})
+                st.success(f"Service '{service_name}' successfully linked to {target_human}. Recurring Revenue Tracking Updated.")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    if s["partner_services"]:
+        st.markdown("#### Active Partner Services Linked to Humans")
+        st.dataframe(pd.DataFrame(s["partner_services"]), use_container_width=True)
+
+# --- TAB 3: LITIGATION & AUDIT READINESS ---
+with tab3:
+    st.markdown("### ⚖️ Litigation Defense & Claims Readiness")
+    st.write("Generate immutable trails of evidence combining HR compliance, Medical Billing, and AI activity logs to win legal cases and reverse insurance denials.")
+    
+    if st.button("Generate Litigation Defense Packet (Claim: POL-10001)"):
+        with st.spinner("Compiling Evidence Trail..."):
+            time.sleep(2)
+        
+        st.success("Defense Packet Compiled Successfully")
+        colA, colB = st.columns(2)
+        with colA:
+            st.markdown("#### 📄 Exhibit A: Federated HR Validation Proof")
+            st.code(f"""
+Human Identity: Jane Doe
+Assigned Role: Claims Adjuster
+Assigned Reviewer: {s['verified_reviewer']}
+ADP Employment Status: {s['verified_adp']}
+MSP License Status: {s['verified_msp']}
+EEO Audit Status (Biddle): {s['verified_biddle']}
+AI Knowledge Validation: TRUE
+            """)
+        with colB:
+            st.markdown("#### 🏥 Exhibit B: Cost of Health Evidence")
+            st.code("""
+Claimant: David Lee
+Injury: Return-to-Work (Transitional)
+Essential Duties Testing: COMPLETED
+Insurance Billed: $15,258
+Insurance Approved: $13,573
+Automated Denial Reason: CPT Code Mismatch
+TPRV AI Rebuttal: Medical necessity matched to ADA requirements.
+            """)
+        st.info("💡 **Litigation Value:** This packet proves to Underwriters and Courts that the claim was processed by a federated, EEO/HIPAA-compliant human, overriding automated carrier denials.")
+
+# --- TAB 4: DYNAMIC NETWORK REPORT ---
+with tab4:
+    st.markdown("### 📊 Dynamic Role Validation Network")
+    st.write("Constant validation of human roles across federated Systems of Record.")
+    
+    network_data = pd.DataFrame([
+        {"Employee": "Jane Doe", "Role": s['verified_title'], "Reviewer": s['verified_reviewer'], "ADP (HR)": s['verified_adp'], "MSP (IT)": s['verified_msp'], "Biddle (EEO)": s['verified_biddle'], "Status": s['verified_status']},
+        {"Employee": "John Smith", "Role": "VP HR", "Reviewer": "Board of Directors", "ADP (HR)": "🟢 Active", "MSP (IT)": "🟢 Active", "Biddle (EEO)": "🟢 Verified", "Status": "🟢 Green (Valid)"},
+        {"Employee": "Robert Chen", "Role": "L2 Helpdesk", "Reviewer": "IT Director", "ADP (HR)": "🟢 Active", "MSP (IT)": "🟢 Active", "Biddle (EEO)": "🔴 Unsigned Policy", "Status": "🟡 Yellow (Pending)"},
+        {"Employee": "Alice Ford", "Role": "Bank KYC Manager", "Reviewer": "Sarah Lee", "ADP (HR)": "🔴 Terminated", "MSP (IT)": "🔴 Revoked", "Biddle (EEO)": "🟢 Verified", "Status": "🔴 Red (Invalid)"}
+    ])
+    
+    st.dataframe(network_data, use_container_width=True, hide_index=True)
+
+    if s["log"]:
+        st.markdown("#### 📡 Real-Time Federated Security Logs")
+        st.dataframe(pd.DataFrame(s["log"]), use_container_width=True, hide_index=True)
+
+# --- TAB 5: DATA STRUCTURE EXPLORER ---
+with tab5:
     st.markdown("### 📊 Enterprise Data Structure Explorer")
     st.write("For POC testing: Review the required data schema and upload your own sanitized CSVs.")
     
