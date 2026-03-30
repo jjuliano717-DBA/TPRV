@@ -191,10 +191,34 @@ with tab1:
                         st.error(f"LLM API Error: {str(e)}. (Check your API Key).")
                 else:
                     # Fallback to smart simulated responses if no key is entered
-                    st.success(f"✅ ROLE VALIDATED ({s['verified_title']}). (Simulated Response Mode).")
-                    st.write(f"**AI Output:** Based on your authorized role as a {s['verified_title']} in {s['verified_jur']}, I have accessed the necessary records to process: '{prompt}'.")
+                    if s["verified_title"] == "IT Security Manager" and "Cyber" in prompt:
+                        st.success(f"✅ ROLE VALIDATED (IT Security Manager). All SoR checks GREEN.")
+                        st.write("**AI Output:** Accessing Cyber Incident Recovery Plans.\n* **Data Point 1:** There were 14 Cyber Attack Incident Recovery Plan Test activities logged in Q1.\n* **Data Point 2:** 3 systems failed containment procedures within the State Attorney General 72-hour reporting compliance window.")
+                        log_event("ALLOW", "Cyber Recovery Grant")
+                    elif s["verified_title"] == "Claims Adjuster" and "Emergency" in prompt:
+                        st.success(f"✅ ROLE VALIDATED (Claims Adjuster). Authenticated by Reviewer: {s['verified_reviewer']}.")
+                        st.write("**AI Output:** Accessing Healthcare Services Billing Data.\n* **Data Point 1:** 342 Emergency Room Treatment Services counts in this time period linked to Workers Comp.\n* **Data Point 2:** $1.2M in billed healthcare charges flagged for excessive diagnostic coding variance.")
+                        log_event("ALLOW", "Healthcare Claims Grant")
+                    elif s["verified_title"] == "Bank KYC Manager" and "DORA" in prompt:
+                        if not s["verified_tpa"]:
+                            st.error("🚨 EXTERNAL DATA DENIED: National TPA Data Link is offline. Cannot execute Straight Through Processing (STP) for Chiro Payments without verified Claims Administrator data.")
+                            log_event("DENY", "Missing TPA Data Link")
+                            status.update(label="Access Denied", state="error")
+                            st.stop()
+                        st.success(f"✅ ROLE VALIDATED (Bank KYC Manager) & TPA LINK VERIFIED.")
+                        st.write("**AI Output:** Executing DORA Compliance protocols.\n* **Data Point 1:** Reconciled 402 National TPA Healthcare invoices with local Rehab Center Blockchain Smart Contracts.\n* **Data Point 2:** Flagged 3 payments due to missing Bank KYC validation; STP halted on exceptions.")
+                        log_event("ALLOW", "DORA STP Sync Grant")
+                    elif s["verified_title"] == "Risk Manager" and "COI" in prompt:
+                        st.success(f"✅ ROLE VALIDATED (Risk Manager). Authenticated by Reviewer: {s['verified_reviewer']}.")
+                        st.write("**AI Output: COI Document Analysis.**\n* **Data Point 1:** Certificate #4029-TX Scanned. Exclusions Found: Force Majeure property damage explicitly excluded.\n* **Data Point 2:** Endorsements Found: Additional Insured coverage applies to Tier 1 Subcontractors exclusively.")
+                        log_event("ALLOW", "COI Analysis Grant")
+                    else:
+                        st.error(f"🚨 ACCESS DENIED: Your validated role ({s['verified_title']}) does not map to the AI Topic required for this query. (See Prompts Library mapping).")
+                        log_event("DENY", "Topic Mismatch")
+                        status.update(label="Access Denied", state="error")
+                        st.stop()
+                        
                     st.info("💡 Enter an OpenAI API key in the sidebar to generate live, unscripted responses using TPRV's dynamic prompt injection.")
-                    log_event("ALLOW", "Simulated Grant")
                     
                 status.update(label="Authorized", state="complete")
 
