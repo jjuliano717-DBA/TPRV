@@ -169,16 +169,17 @@ with tab1:
                         If they ask for financial, medical, or HR data that a '{s['verified_title']}' should not see, refuse politely.
                         """
                         
-                        response = client.chat.completions.create(
-                            model="gpt-3.5-turbo",
+                        stream = client.chat.completions.create(
+                            model="gpt-4o-mini",
                             messages=[
                                 {"role": "system", "content": system_prompt},
                                 {"role": "user", "content": prompt}
-                            ]
+                            ],
+                            stream=True
                         )
-                        st.success(f"✅ ROLE VALIDATED ({s['verified_title']}). Live LLM Response Generated.")
-                        st.write(response.choices[0].message.content)
-                        log_event("ALLOW", "Live LLM API Called")
+                        st.success(f"✅ ROLE VALIDATED ({s['verified_title']}). Live LLM Response Streaming.")
+                        st.write_stream(stream)
+                        log_event("ALLOW", "Live LLM API Called (Stream)")
                         
                     except Exception as e:
                         st.error(f"LLM API Error: {str(e)}. (Check your API Key).")
