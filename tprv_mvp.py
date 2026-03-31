@@ -12,8 +12,8 @@ except ImportError:
     OPENAI_AVAILABLE = False
 
 # --- STATE MANAGEMENT ---
-if 'v9_state' not in st.session_state:
-    st.session_state.v9_state = {
+if 'v11_state' not in st.session_state:
+    st.session_state.v11_state = {
         "title": "Claims Adjuster", 
         "jurisdiction": "Texas",
         "reviewer": "Sarah Lee (Chief Risk Officer)",
@@ -36,33 +36,32 @@ if 'v9_state' not in st.session_state:
     }
 
 def log_event(outcome, rationale):
-    s = st.session_state.v9_state
+    s = st.session_state.v11_state
     s["log"].insert(0, {
         "Time": datetime.now().strftime("%H:%M:%S"),
-        "Context": f"{s['verified_title']} ({s['verified_jur']})",
+        "Context": f"{s['verified_title']} ({s['verified_jur']}) | Rev: {s['verified_reviewer']}",
         "Outcome": outcome,
         "Rationale": rationale
     })
 
 # --- CONFIG & STYLING ---
-st.set_page_config(page_title="TPRV Enterprise POC", layout="wide")
+st.set_page_config(page_title="TPRV Master Enterprise Platform V11", layout="wide")
 st.markdown("""<style>
 div.stButton > button:first-child { font-weight: 500; border: 1px solid #38bdf8; }
 .metric-box { background-color: #1e293b; padding: 15px; border-radius: 8px; border: 1px solid #334155; margin-bottom: 10px; }
 .sor-green { color: #10b981; font-weight: bold; }
 .sor-red { color: #ef4444; font-weight: bold; }
+.partner-box { border: 1px solid #475569; padding: 20px; border-radius: 8px; background-color: #1e293b; margin-bottom: 20px;}
 </style>""", unsafe_allow_html=True)
 
-s = st.session_state.v9_state
+s = st.session_state.v11_state
 
 # --- SIDEBAR: DATA INGESTION & LLM SETUP ---
 with st.sidebar:
     st.header("⚙️ POC Configuration")
     
-    # Live LLM Integration
-    api_key = st.text_input("OpenAI API Key (Optional for Live LLM)", type="password", help="Enter a valid API key to replace hardcoded responses with real GenAI. TPRV will still act as the security firewall.")
+    api_key = st.text_input("OpenAI API Key (Optional)", type="password", help="Enter a valid API key to replace hardcoded responses with real GenAI. TPRV will still act as the security firewall.")
     
-    # Data Ingestion Toggle
     data_mode = st.radio("Data Source", ["Use Static Demo Data", "Upload Client CSV Roster"], help="Toggle between built-in TPRV demo data or ingest a sanitized client CSV export.")
     
     if data_mode == "Upload Client CSV Roster":
@@ -70,7 +69,6 @@ with st.sidebar:
         if uploaded_file:
             s["roster_df"] = pd.read_csv(uploaded_file)
             st.success(f"Loaded {len(s['roster_df'])} records.")
-            # Dynamically pull titles from CSV if column exists
             job_titles = s["roster_df"].columns.tolist()
             st.info(f"Detected Columns: {', '.join(job_titles)}")
 
@@ -79,7 +77,6 @@ with st.sidebar:
     st.header("🔌 Federated Systems of Record")
     st.markdown("*(Hover over labels for Data Structure Notes)*")
     
-    # Added 'help' parameters for Data Structure Hover Notes
     t = st.selectbox("Job Title & WC Code", ["L2 Helpdesk", "Claims Adjuster", "Safety Manager", "IT Security Manager", "Bank KYC Manager", "Risk Manager"], 
                      index=["L2 Helpdesk", "Claims Adjuster", "Safety Manager", "IT Security Manager", "Bank KYC Manager", "Risk Manager"].index(s["title"]),
                      help="Data Structure: String. Maps to ADP Payroll Tax Classifications and Workers Comp Rating Codes.")
@@ -94,22 +91,34 @@ with st.sidebar:
     
     msp_stat = st.selectbox("MSP Entra ID Sync", ["🟢 Active", "🔴 Revoked / Offline"], 
                             index=["🟢 Active", "🔴 Revoked / Offline"].index(s["msp_status"]),
-                            help="Data Structure: Boolean. Validates if the user currently holds an active $30/mo Copilot IT License via the Managed Service Provider.")
+                            help="Data Structure: Boolean. Validates if the user currently holds an active Copilot IT License via the MSP.")
     
     biddle_stat = st.selectbox("Biddle EEO Audit Status", ["🟢 Verified", "🔴 Unsigned Policy"], 
                                index=["🟢 Verified", "🔴 Unsigned Policy"].index(s["biddle_status"]),
-                               help="Data Structure: Boolean. Validates that the employee has digitally signed their EEO & Code of Conduct policies. Required for Litigation Defense.")
+                               help="Data Structure: Boolean. Validates that the employee has digitally signed their EEO policies. Required for Litigation Defense.")
 
+    st.subheader("TPRV Global Oversight")
+    tpa = st.checkbox("National TPA Data Link Active", value=s["tpa_linked"])
+    rev = st.selectbox("Assigned Human Reviewer", ["Unassigned", "John Smith (VP HR)", "Sarah Lee (Chief Risk Officer)"], index=["Unassigned", "John Smith (VP HR)", "Sarah Lee (Chief Risk Officer)"].index(s["reviewer"]))
+    stat = st.selectbox("Service Validation Status", ["🟢 Green (Valid)", "🟡 Yellow (Pending)", "🔴 Red (Expired/Invalid)"], index=["🟢 Green (Valid)", "🟡 Yellow (Pending)", "🔴 Red (Expired/Invalid)"].index(s["service_status"]))
+    
     if st.button("Sync Federated Network"):
         with st.spinner("Aggregating Systems of Record..."):
             time.sleep(1)
-            s.update({"title": t, "jurisdiction": j, "adp_status": adp_stat, "msp_status": msp_stat, "biddle_status": biddle_stat,
-                      "verified_title": t, "verified_jur": j, "verified_adp": adp_stat, "verified_msp": msp_stat, "verified_biddle": biddle_stat})
+            s.update({"title": t, "jurisdiction": j, "adp_status": adp_stat, "msp_status": msp_stat, "biddle_status": biddle_stat, "tpa_linked": tpa, "reviewer": rev, "service_status": stat,
+                      "verified_title": t, "verified_jur": j, "verified_adp": adp_stat, "verified_msp": msp_stat, "verified_biddle": biddle_stat, "verified_tpa": tpa, "verified_reviewer": rev, "verified_status": stat})
             st.rerun()
 
 # --- ENTERPRISE PORTALS (TABS) ---
-st.title("🛡️ TPRV: Enterprise Data Sandbox")
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["🤖 AI Gatekeeper & Prompt Engine", "🤝 Partner Data Hub", "⚖️ Litigation & Audit", "📊 Network Status", "🗂️ Data Schema Explorer"])
+st.title("🛡️ TPRV: Unified Enterprise Platform")
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    "🤖 AI Gatekeeper", 
+    "📊 Data Explorer", 
+    "🏥 Revenue Impact", 
+    "🤝 Partner Hub", 
+    "⚖️ Audit Readiness", 
+    "📈 Network Report"
+])
 
 # --- TAB 1: AI GATEKEEPER & PROMPT ENGINE ---
 with tab1:
@@ -129,15 +138,22 @@ with tab1:
             <strong>IT Access:</strong> <span class="{'sor-green' if '🟢' in s['verified_msp'] else 'sor-red'}">{s['verified_msp']}</span><br>
             <strong>EEO Signature:</strong> <span class="{'sor-green' if '🟢' in s['verified_biddle'] else 'sor-red'}">{s['verified_biddle']}</span>
         </div>
+        <div class="metric-box" style="border-color: #38bdf8;">
+            <small style="color:#38bdf8">TPRV Global Validation</small><br>
+            <strong>Reviewer:</strong> {s['verified_reviewer']}<br>
+            <strong>Service:</strong> {s['verified_status']}
+        </div>
         """, unsafe_allow_html=True)
 
     with col_chat:
-        st.markdown("### Executive Quick Prompts")
+        st.markdown("### Copilot Interface")
+        
+        # Bring back the executive quick prompts for smooth demos
         cols = st.columns(2)
         quick = None
-        if cols[0].button("Query Cyber Incident Plans"): quick = "What is the Cyber Attack Incident Recovery Plan Test activities count in this time period?"
+        if cols[0].button("Query Cyber Incident Recovery Plans"): quick = "What is the Cyber Attack Incident Recovery Plan Test activities count in this time period?"
         if cols[0].button("Execute DORA/STP Payments Sync"): quick = "Execute DORA Smart Contract Reconciliation for Chiro Payments"
-        if cols[1].button("Analyze Healthcare Billing"): quick = "What is the Emergency Room Treatment Services count in this time period?"
+        if cols[1].button("Analyze Healthcare Services Billing"): quick = "What is the Emergency Room Treatment Services count in this time period?"
         if cols[1].button("Analyze COI Exclusions"): quick = "Read Certificates of Insurance and identify underwriting exclusions."
 
         prompt = st.chat_input("Prompt Enterprise Copilot... (Type anything if API Key is active)") or quick
@@ -147,7 +163,12 @@ with tab1:
             with st.chat_message("assistant"), st.status("TPRV Validating Identity...", expanded=True) as status:
                 time.sleep(1.5)
                 
-                # --- TPRV ARCHITECTURE: FIREWALL BEFORE THE LLM ---
+                # --- FIREWALL BEFORE LLM ---
+                if "🔴" in s["verified_status"]:
+                    st.error(f"🚨 ACCESS DENIED: Service Validation Status is RED. Mandatory human reviewer ({s['verified_reviewer']}) must approve updates before AI access is restored.")
+                    log_event("DENY", "Status Red (Expired/Invalid)")
+                    status.update(label="Access Denied", state="error")
+                    st.stop()
                 if "🔴" in s["verified_adp"] or "🔴" in s["verified_msp"] or "🔴" in s["verified_biddle"]:
                     st.error("🚨 ACCESS DENIED: A federated System of Record indicates invalid status. Prompt blocked before reaching LLM.")
                     log_event("DENY", "SoR Kill Switch Activated")
@@ -160,75 +181,113 @@ with tab1:
                     status.update(label="Access Denied", state="error")
                     st.stop()
 
-                # --- LIVE LLM EXECUTION (If Key is Provided) ---
+                # --- LIVE LLM EXECUTION ---
                 status.update(label="TPRV Passed. Routing to LLM...", state="running")
                 
                 if api_key and OPENAI_AVAILABLE:
                     try:
                         client = OpenAI(api_key=api_key)
-                        
-                        # The System Prompt dynamically injects their verified HR data to "Ground" the AI
                         system_prompt = f"""
                         You are an Enterprise AI Assistant.
                         CRITICAL SECURITY CONTEXT: The user you are talking to has been HR-verified by the TPRV system as a '{s['verified_title']}' operating in '{s['verified_jur']}'.
                         You must tailor your answer specifically to their job role and state jurisdiction. 
                         If they ask for financial, medical, or HR data that a '{s['verified_title']}' should not see, refuse politely.
                         """
-                        
-                        stream = client.chat.completions.create(
-                            model="gpt-4o-mini",
+                        response = client.chat.completions.create(
+                            model="gpt-3.5-turbo",
                             messages=[
                                 {"role": "system", "content": system_prompt},
                                 {"role": "user", "content": prompt}
-                            ],
-                            stream=True
+                            ]
                         )
-                        st.success(f"✅ ROLE VALIDATED ({s['verified_title']}). Live LLM Response Streaming.")
-                        st.write_stream(stream)
-                        log_event("ALLOW", "Live LLM API Called (Stream)")
+                        st.success(f"✅ ROLE VALIDATED ({s['verified_title']}). Live LLM Response Generated.")
+                        st.write(response.choices[0].message.content)
+                        log_event("ALLOW", "Live LLM API Called")
                         
                     except Exception as e:
                         st.error(f"LLM API Error: {str(e)}. (Check your API Key).")
                 else:
-                    # Fallback to smart simulated responses if no key is entered
+                    st.success(f"✅ ROLE VALIDATED ({s['verified_title']}). (Simulated Response Mode).")
+                    
+                    # Hardcoded fallbacks for the quick prompts
                     if s["verified_title"] == "IT Security Manager" and "Cyber" in prompt:
-                        st.success(f"✅ ROLE VALIDATED (IT Security Manager). All SoR checks GREEN.")
-                        st.write("**AI Output:** Accessing Cyber Incident Recovery Plans.\n* **Data Point 1:** There were 14 Cyber Attack Incident Recovery Plan Test activities logged in Q1.\n* **Data Point 2:** 3 systems failed containment procedures within the State Attorney General 72-hour reporting compliance window.")
-                        log_event("ALLOW", "Cyber Recovery Grant")
+                        st.write("**AI Output:** Accessing Incident Recovery Plans. There were 14 Cyber Attack Incident Recovery Plan Test activities logged. Integrating internal IT Security Policy Section 3 containment procedures with State Attorney General reporting requirements.")
                     elif s["verified_title"] == "Claims Adjuster" and "Emergency" in prompt:
-                        st.success(f"✅ ROLE VALIDATED (Claims Adjuster). Authenticated by Reviewer: {s['verified_reviewer']}.")
-                        st.write("**AI Output:** Accessing Healthcare Services Billing Data.\n* **Data Point 1:** 342 Emergency Room Treatment Services counts in this time period linked to Workers Comp.\n* **Data Point 2:** $1.2M in billed healthcare charges flagged for excessive diagnostic coding variance.")
-                        log_event("ALLOW", "Healthcare Claims Grant")
+                        st.write("**AI Output:** Accessing Healthcare Services Reconciliation Plan. There were 342 Emergency Room Treatment Services counts in this time period linked to Workers Comp.")
                     elif s["verified_title"] == "Bank KYC Manager" and "DORA" in prompt:
                         if not s["verified_tpa"]:
-                            st.error("🚨 EXTERNAL DATA DENIED: National TPA Data Link is offline. Cannot execute Straight Through Processing (STP) for Chiro Payments without verified Claims Administrator data.")
-                            log_event("DENY", "Missing TPA Data Link")
-                            status.update(label="Access Denied", state="error")
+                            st.error("🚨 EXTERNAL DATA DENIED: National TPA Data Link is offline.")
                             st.stop()
-                        st.success(f"✅ ROLE VALIDATED (Bank KYC Manager) & TPA LINK VERIFIED.")
-                        st.write("**AI Output:** Executing DORA Compliance protocols.\n* **Data Point 1:** Reconciled 402 National TPA Healthcare invoices with local Rehab Center Blockchain Smart Contracts.\n* **Data Point 2:** Flagged 3 payments due to missing Bank KYC validation; STP halted on exceptions.")
-                        log_event("ALLOW", "DORA STP Sync Grant")
+                        st.write("**AI Output:** Executing DORA Compliance protocols. Reconciling National TPA Healthcare Services data with Blockchain Smart Contracts. STP validation successful.")
                     elif s["verified_title"] == "Risk Manager" and "COI" in prompt:
-                        st.success(f"✅ ROLE VALIDATED (Risk Manager). Authenticated by Reviewer: {s['verified_reviewer']}.")
-                        st.write("**AI Output: COI Document Analysis.**\n* **Data Point 1:** Certificate #4029-TX Scanned. Exclusions Found: Force Majeure property damage explicitly excluded.\n* **Data Point 2:** Endorsements Found: Additional Insured coverage applies to Tier 1 Subcontractors exclusively.")
-                        log_event("ALLOW", "COI Analysis Grant")
+                        st.write("**AI Output: COI Document Analysis.**\n* Certificate #4029-TX Scanned.\n* **Exclusions Found:** Force Majeure property damage excluded.\n* **Endorsements Found:** Additional Insured coverage applies to Subcontractors.")
                     else:
-                        st.error(f"🚨 ACCESS DENIED: Your validated role ({s['verified_title']}) does not map to the AI Topic required for this query. (See Prompts Library mapping).")
-                        log_event("DENY", "Topic Mismatch")
-                        status.update(label="Access Denied", state="error")
-                        st.stop()
-                        
-                    st.info("💡 Enter an OpenAI API key in the sidebar to generate live, unscripted responses using TPRV's dynamic prompt injection.")
+                        st.write(f"**AI Output:** Based on your authorized role as a {s['verified_title']} in {s['verified_jur']}, I have accessed the necessary records to process: '{prompt}'.")
+                        st.info("💡 Enter an OpenAI API key in the sidebar to generate live, unscripted responses.")
+                    
+                    log_event("ALLOW", "Simulated Grant")
                     
                 status.update(label="Authorized", state="complete")
 
-# --- TAB 2: PARTNER DATA HUB ---
+# --- TAB 2: DATA STRUCTURE EXPLORER ---
 with tab2:
+    st.markdown("### 📊 Enterprise Data Structure Explorer")
+    st.write("For POC testing: Review the required data schema and upload your own sanitized CSVs.")
+    
+    if s["roster_df"] is not None:
+        st.subheader("Client Roster Data Ingested")
+        st.dataframe(s["roster_df"], use_container_width=True)
+    else:
+        st.info("👈 Upload a Client CSV in the sidebar to view it here.")
+        
+    with st.expander("📖 TPRV Required Data Dictionary (Hover for details)", expanded=True):
+        st.markdown("""
+        * **`Employee_ID`**: Unique alphanumeric identifier (No SSN or Names required).
+        * **`Job_Title`**: Maps to the 'AI Topics Knowledge' matrix to gate AI responses.
+        * **`Jurisdiction_State`**: Required to enforce state-level compliance.
+        * **`EEO_Audit_Flag`**: Boolean. Ensures the employee has signed compliance documentation.
+        * **`Entra_ID_Status`**: Boolean. Confirms active IT licensing.
+        """)
+
+# --- TAB 3: PROVIDER REVENUE IMPACT ---
+with tab3:
+    st.markdown("### 🏥 Provider Revenue Impact Calculator")
+    st.write("Demonstrate the top-line revenue recovery for Healthcare Providers by overturning automated carrier denials using TPRV's immutable Trail of Evidence.")
+    
+    st.markdown("#### Baseline Parameters")
+    col_in1, col_in2, col_in3 = st.columns(3)
+    with col_in1:
+        billed = st.slider("Total Annual Billed ($)", min_value=1000000, max_value=50000000, value=10000000, step=500000, format="$%d")
+    with col_in2:
+        denial_rate = st.slider("Carrier Auto-Denial Rate (%)", min_value=5, max_value=40, value=18, step=1)
+    with col_in3:
+        reversal_rate = st.slider("TPRV Denial Reversal Rate (%)", min_value=10, max_value=95, value=65, step=1)
+
+    risk_revenue = billed * (denial_rate / 100)
+    recovered = risk_revenue * (reversal_rate / 100)
+    base_realized = billed - risk_revenue
+    final_realized = base_realized + recovered
+
+    st.markdown("#### Financial Impact Metrics")
+    col_out1, col_out2, col_out3 = st.columns(3)
+    col_out1.metric("Gross Revenue at Risk (Auto-Denials)", f"${risk_revenue:,.0f}")
+    col_out2.metric("Revenue Recovered via TPRV Evidence", f"${recovered:,.0f}", f"+{(recovered/billed)*100:.1f}% Margin Impact")
+    col_out3.metric("Final Realized Revenue", f"${final_realized:,.0f}")
+
+    st.markdown("#### Realized Revenue Comparison")
+    chart_data = pd.DataFrame({
+        "Scenario": ["Without TPRV (Carrier Denies)", "With TPRV (Recovered)"],
+        "Revenue": [base_realized, final_realized]
+    }).set_index("Scenario")
+    st.bar_chart(chart_data)
+
+# --- TAB 4: PARTNER DATA HUB (Restored from V8) ---
+with tab4:
     st.markdown("### 🤝 Partner Services Integration Hub")
     st.write("Partners update service data here, linking directly to the Human Purchaser to drive recurring revenue tracking.")
     
     with st.container():
-        st.markdown('<div class="metric-box">', unsafe_allow_html=True)
+        st.markdown('<div class="partner-box">', unsafe_allow_html=True)
         col1, col2 = st.columns(2)
         with col1:
             partner_name = st.selectbox("Select Partner API", ["Biddle Consulting (EEO)", "National Healthcare TPA", "Sedgwick Claims Admin"])
@@ -244,8 +303,8 @@ with tab2:
         st.markdown("#### Active Partner Services Linked to Humans")
         st.dataframe(pd.DataFrame(s["partner_services"]), use_container_width=True)
 
-# --- TAB 3: LITIGATION & AUDIT READINESS ---
-with tab3:
+# --- TAB 5: LITIGATION & AUDIT READINESS (Restored from V8) ---
+with tab5:
     st.markdown("### ⚖️ Litigation Defense & Claims Readiness")
     st.write("Generate immutable trails of evidence combining HR compliance, Medical Billing, and AI activity logs to win legal cases and reverse insurance denials.")
     
@@ -277,10 +336,9 @@ Insurance Approved: $13,573
 Automated Denial Reason: CPT Code Mismatch
 TPRV AI Rebuttal: Medical necessity matched to ADA requirements.
             """)
-        st.info("💡 **Litigation Value:** This packet proves to Underwriters and Courts that the claim was processed by a federated, EEO/HIPAA-compliant human, overriding automated carrier denials.")
 
-# --- TAB 4: DYNAMIC NETWORK REPORT ---
-with tab4:
+# --- TAB 6: DYNAMIC NETWORK REPORT (Restored from V8) ---
+with tab6:
     st.markdown("### 📊 Dynamic Role Validation Network")
     st.write("Constant validation of human roles across federated Systems of Record.")
     
@@ -296,23 +354,3 @@ with tab4:
     if s["log"]:
         st.markdown("#### 📡 Real-Time Federated Security Logs")
         st.dataframe(pd.DataFrame(s["log"]), use_container_width=True, hide_index=True)
-
-# --- TAB 5: DATA STRUCTURE EXPLORER ---
-with tab5:
-    st.markdown("### 📊 Enterprise Data Structure Explorer")
-    st.write("For POC testing: Review the required data schema and upload your own sanitized CSVs.")
-    
-    if s["roster_df"] is not None:
-        st.subheader("Client Roster Data Ingested")
-        st.dataframe(s["roster_df"], use_container_width=True)
-    else:
-        st.info("👈 Upload a Client CSV in the sidebar to view it here.")
-        
-    with st.expander("📖 TPRV Required Data Dictionary (Hover for details)", expanded=True):
-        st.markdown("""
-        * **`Employee_ID`**: Unique alphanumeric identifier (No SSN or Names required).
-        * **`Job_Title`**: Maps to the 'AI Topics Knowledge' matrix to gate AI responses.
-        * **`Jurisdiction_State`**: Required to enforce state-level compliance (e.g., Texas Data Privacy Act vs. NY Shield Act).
-        * **`EEO_Audit_Flag`**: Boolean (True/False). Ensures the employee has signed compliance documentation before using AI.
-        * **`Entra_ID_Status`**: Boolean (True/False). Confirms active IT licensing.
-        """)
