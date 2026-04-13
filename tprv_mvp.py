@@ -4,7 +4,10 @@ import numpy as np
 import plotly.express as px
 import time
 from datetime import datetime
+import io
+import 
 
+# v21 
 # Try to import OpenAI for the Live LLM integration
 try:
     from openai import OpenAI
@@ -19,10 +22,9 @@ div.stButton > button:first-child { font-weight: 500; border: 1px solid #38bdf8;
 .metric-box { background-color: #1e293b; padding: 15px; border-radius: 8px; border: 1px solid #334155; margin-bottom: 10px; }
 .sor-green { color: #10b981; font-weight: bold; }
 .sor-red { color: #ef4444; font-weight: bold; }
-.partner-box { border: 1px solid #475569; padding: 20px; border-radius: 8px; background-color: #1e293b; margin-bottom: 20px;}
 </style>""", unsafe_allow_html=True)
 
-# --- MOCK DATA GENERATION (V21) ---
+# --- DATA GENERATION & INGESTION ---
 @st.cache_data
 def generate_claims_data():
     """Generates the enhanced 200-row Loss Run dataset per Doc's requirements."""
@@ -45,56 +47,76 @@ def generate_claims_data():
     }
     return pd.DataFrame(data)
 
+def load_baseline_data(uploaded_file=None):
+    """Loads the 121-row CSV dynamically, falling back to embedded seed data if missing."""
+    local_file = "AI Role Validation Systems Baselines 04072026.xlsx - Role Validation Systems.csv"
+    
+    # 1. Check if user uploaded a file in the UI
+    if uploaded_file is not None:
+        df = pd.read_csv(uploaded_file)
+    # 2. Check if the 121-row CSV is in the local folder
+    elif os.path.exists(local_file):
+        df = pd.read_csv(local_file)
+    # 3. Fallback to embedded seed data (extracted from prompt snippets)
+    else:
+        csv_data = """ROLE VALIDATION - AI TOPICS,OWNER,AUDIT ACTIVITY,REVIEWER
+Legal Entity Filings,Executive Management,Regulatory Reporting,Attorney
+Legal Entity Jurisdictions,Executive Management,Regulatory Reporting,Attorney
+Industry Benchmarks,Executive Management,Regulatory Reporting,Accountant
+Management Assertions,Executive Management,Regulatory Reporting,Auditor
+Risk Disclosures,Executive Management,Regulatory Reporting,Attorney
+Gross Revenue $,Finance,Regulatory Reporting,Accountant
+Asset $,Finance,Regulatory Reporting,Accountant
+Assets #,Finance,Regulatory Reporting,Accountant
+COGS Transactions #,Finance,Regulatory Reporting,Accountant
+Expenses $,Finance,Regulatory Reporting,Accountant
+Collateral $,Finance,Regulatory Reporting,Bank
+Loss Reserves $,Finance,Regulatory Reporting,Accountant
+Tax Audits,Finance,Know Your Customer,Auditor
+KYC - Banking Reviews,Finance,Know Your Customer,Bank
+KYC - Custody Reviews,Finance,Know Your Customer,Bank
+Records Retention Audits,Finance,Know Your Customer,Bank
+Employees with Healthcare Services Enrollments,Human Resources,Healthcare Services Reconciliation,Medical Services
+Medical Services - ICD 10 Codes,Risk Management,Healthcare Services Reconciliation,Medical Services
+Medical Services - NCCI Med Codes,Risk Management,Healthcare Services Reconciliation,Medical Services
+Medical Services Codes Reconciliation,Risk Management,Healthcare Services Reconciliation,Medical Services
+Medical Services Payments Reconciliation,Risk Management,Healthcare Services Reconciliation,Medical Services
+Injury Claims with Return To Work Plans,Human Resources,UW Stewardship,HR Admin
+Transitional Duty Job Descriptions,Human Resources,UW Stewardship,HR Admin
+Injury Claims with Transitional Duty Job Descriptions,Human Resources,UW Stewardship,HR Admin
+Incident Recovery Plans,Risk Management,UW Stewardship,Broker
+Incident Recovery Plan Activities,Risk Management,UW Stewardship,Broker
+Incident Recovery Plan Tests,Risk Management,UW Stewardship,Broker"""
+        df = pd.read_csv(io.StringIO(csv_data))
+    
+    # Normalize schema
+    if "SYSTEM OF RECORD" not in df.columns: df["SYSTEM OF RECORD"] = "Unmapped"
+    if "REVIEWER SYSTEM" not in df.columns: df["REVIEWER SYSTEM"] = "Unmapped"
+    if "AI STATUS RATINGS" not in df.columns: df["AI STATUS RATINGS"] = "Low"
+    
+    # Fill empty mappings
+    df["SYSTEM OF RECORD"] = df["SYSTEM OF RECORD"].fillna("Unmapped")
+    df["REVIEWER SYSTEM"] = df["REVIEWER SYSTEM"].fillna("Unmapped")
+    
+    return df[["ROLE VALIDATION - AI TOPICS", "OWNER", "AUDIT ACTIVITY", "REVIEWER", "SYSTEM OF RECORD", "REVIEWER SYSTEM", "AI STATUS RATINGS"]]
+
 # --- STATE MANAGEMENT ---
 if 'app_state' not in st.session_state:
     st.session_state.app_state = {
-        "title": "Claims Adjuster", 
-        "jurisdiction": "Texas",
-        "reviewer": "Sarah Lee (Chief Risk Officer)",
-        "adp_status": "🟢 Active",
-        "msp_status": "🟢 Active",
-        "biddle_status": "🟢 Verified",
-        "service_status": "🟢 Green (Valid)",
-        "verified_title": "Claims Adjuster",
-        "verified_jur": "Texas",
-        "verified_reviewer": "Sarah Lee (Chief Risk Officer)",
-        "verified_adp": "🟢 Active",
-        "verified_msp": "🟢 Active",
-        "verified_biddle": "🟢 Verified",
-        "verified_status": "🟢 Green (Valid)",
+        "title": "Claims Adjuster", "jurisdiction": "Texas", "reviewer": "Sarah Lee (Chief Risk Officer)",
+        "adp_status": "🟢 Active", "msp_status": "🟢 Active", "biddle_status": "🟢 Verified", "service_status": "🟢 Green (Valid)",
+        "verified_title": "Claims Adjuster", "verified_jur": "Texas", "verified_reviewer": "Sarah Lee (Chief Risk Officer)",
+        "verified_adp": "🟢 Active", "verified_msp": "🟢 Active", "verified_biddle": "🟢 Verified", "verified_status": "🟢 Green (Valid)",
         "log": [],
         "claims_df": generate_claims_data(),
-        "baseline_df": pd.DataFrame({
-            "ROLE VALIDATION - AI TOPICS": [
-                "Legal Entity Filings",
-                "Gross Revenue $",
-                "Incident Recovery Plans",
-                "Medical Services Codes Reconciliation",
-                "Transitional Duty Job Descriptions",
-                "OSHA Log Management"
-            ],
-            "OWNER": [
-                "Executive Management", "Finance", "Risk Management", 
-                "Risk Management", "Human Resources", "Executive Management"
-            ],
-            "AUDIT ACTIVITY": [
-                "Regulatory Reporting", "Regulatory Reporting", "UW Stewardship", 
-                "Healthcare Services Reconciliation", "UW Stewardship", "Regulatory Reporting"
-            ],
-            "REVIEWER": [
-                "Attorney", "Accountant", "Broker", 
-                "Medical Services", "HR Admin", "Safety Manager"
-            ],
-            "SYSTEM OF RECORD": ["Unmapped"] * 6,
-            "REVIEWER SYSTEM": ["Unmapped"] * 6,
-            "AI STATUS RATINGS": ["Low"] * 6
-        }),
+        "baseline_df": load_baseline_data(),
         "baseline_score": 0.0,
         "connectors_validated": False
     }
 
+s = st.session_state.app_state
+
 def log_event(outcome, rationale):
-    s = st.session_state.app_state
     s["log"].insert(0, {
         "Time": datetime.now().strftime("%H:%M:%S"),
         "Context": f"{s['verified_title']} ({s['verified_jur']}) | Rev: {s['verified_reviewer']}",
@@ -102,16 +124,13 @@ def log_event(outcome, rationale):
         "Rationale": rationale
     })
 
-s = st.session_state.app_state
-
 # --- SIDEBAR: CONFIG & IDENTITY MATRIX ---
 with st.sidebar:
     st.header("⚙️ POC Configuration")
-    api_key = st.text_input("OpenAI API Key (Optional)", type="password", help="Replace hardcoded responses with real GenAI.")
+    api_key = st.text_input("OpenAI API Key (Optional)", type="password")
     
     st.divider()
     st.header("🔌 Federated Systems of Record")
-    
     t = st.selectbox("Job Title & WC Code", ["L2 Helpdesk", "Claims Adjuster", "Safety Manager", "Risk Manager"], index=1)
     j = st.selectbox("Jurisdiction", ["Texas", "New York", "Pennsylvania"], index=0)
     adp_stat = st.selectbox("ADP Feed Status", ["🟢 Active", "🔴 Disconnected / Terminated"], index=0)
@@ -123,25 +142,17 @@ with st.sidebar:
     stat = st.selectbox("Service Validation Status", ["🟢 Green (Valid)", "🟡 Yellow (Pending)", "🔴 Red (Expired/Invalid)"], index=0)
     
     if st.button("Sync Federated Network"):
-        with st.spinner("Aggregating Systems of Record..."):
-            time.sleep(1)
-            s.update({"title": t, "jurisdiction": j, "adp_status": adp_stat, "msp_status": msp_stat, "biddle_status": biddle_stat,
-                      "reviewer": rev, "service_status": stat,
-                      "verified_title": t, "verified_jur": j, "verified_adp": adp_stat, "verified_msp": msp_stat,
-                      "verified_biddle": biddle_stat, "verified_reviewer": rev, "verified_status": stat})
-            st.rerun()
+        s.update({"title": t, "jurisdiction": j, "adp_status": adp_stat, "msp_status": msp_stat, "biddle_status": biddle_stat,
+                  "reviewer": rev, "service_status": stat,
+                  "verified_title": t, "verified_jur": j, "verified_adp": adp_stat, "verified_msp": msp_stat,
+                  "verified_biddle": biddle_stat, "verified_reviewer": rev, "verified_status": stat})
+        st.rerun()
 
 # --- MAIN UI LAYOUT ---
-st.title("🛡️ TruRoles TPV")
-st.markdown("### Strategic Assessment, Actuarial Enrichment & Real-World Use Cases")
-
+st.title("🛡️ Enterprise AI Risk Optimization Platform (v21)")
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-    "1. AI Systems Baseline", 
-    "2. Claims Explorer", 
-    "3. AI Gatekeeper Copilot",
-    "🏥 Revenue Impact",
-    "⚖️ Audit Readiness",
-    "📋 Underwriting Analytics"
+    "1. AI Systems Baseline", "2. Claims Explorer", "3. AI Gatekeeper Copilot",
+    "🏥 Revenue Impact", "⚖️ Audit Readiness", "📋 Underwriting Analytics"
 ])
 
 # ==========================================
@@ -149,9 +160,21 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 # ==========================================
 with tab1:
     st.header("Step 1: AI Role Validation Baseline")
-    st.markdown("Map your core enterprise activities to current IT systems and human reviewer systems to establish your initial AI Status Rating.")
+    st.markdown("Map core enterprise activities to current IT systems to establish your AI Status Rating.")
     
-    system_options = ["Unmapped", "ADP", "Workday", "Salesforce", "ServiceNow", "Excel/Manual", "Custom ERP", "Sedgwick TPA", "Paycom", "Bank Portal", "Legal FileNet"]
+    # 121-Record Uploader
+    uploaded_file = st.file_uploader("Upload CSV to populate all 121 AI Topics (Optional)", type="csv")
+    if uploaded_file is not None and st.button("Load Custom CSV"):
+        s["baseline_df"] = load_baseline_data(uploaded_file)
+        st.rerun()
+
+    system_options = ["Unmapped", "ADP", "Workday", "Salesforce", "ServiceNow", "Excel/Manual", "Custom ERP", "Sedgwick TPA", "Paycom", "Microsoft Copilot", "FileNet"]
+
+    # Bulk Mapper Feature (Low-Friction Demo Mode)
+    if st.button("⚡ Bulk Auto-Map All Systems (Demo Mode)", help="Instantly assigns valid systems to all 121 records."):
+        s["baseline_df"]["SYSTEM OF RECORD"] = "Microsoft Copilot"
+        s["baseline_df"]["REVIEWER SYSTEM"] = "Microsoft Copilot"
+        st.rerun()
 
     # Visual Progress Bar
     st.progress(int(s["baseline_score"]), text=f"AI Readiness Optimization: {s['baseline_score']:.0f}%")
@@ -167,10 +190,9 @@ with tab1:
             "REVIEWER SYSTEM": st.column_config.SelectboxColumn("REVIEWER SYSTEM", options=system_options, required=True),
             "AI STATUS RATINGS": st.column_config.Column(disabled=True)
         },
-        use_container_width=True, hide_index=True, key="baseline_editor"
+        use_container_width=True, hide_index=True, key="baseline_editor", height=500
     )
     
-    # Calculate Logic: Requires both System of Record and Reviewer System to be mapped to non-manual systems
     def calculate_status(row):
         sys_mapped = row['SYSTEM OF RECORD'] not in ["Unmapped", "Excel/Manual"]
         rev_mapped = row['REVIEWER SYSTEM'] not in ["Unmapped", "Excel/Manual"]
@@ -181,9 +203,9 @@ with tab1:
     edited_df['AI STATUS RATINGS'] = edited_df.apply(calculate_status, axis=1)
     s["baseline_df"] = edited_df
     
-    high_count = len(edited_df[edited_df['AI STATUS RATINGS'] == 'High'])
     total = len(edited_df)
-    s["baseline_score"] = (high_count / total) * 100
+    high_count = len(edited_df[edited_df['AI STATUS RATINGS'] == 'High'])
+    s["baseline_score"] = (high_count / total) * 100 if total > 0 else 0
 
     cols = st.columns(3)
     cols[0].metric("Enterprise AI Readiness Score", f"{s['baseline_score']:.0f}%", delta=f"{high_count}/{total} Optimized")
@@ -191,7 +213,6 @@ with tab1:
     cols[2].metric("Incident Recovery Plan Test Ratio", f"{high_count * 2} / {total * 2}", delta="Audit Ready")
 
     col_btn1, col_btn2 = st.columns([1, 1])
-    
     with col_btn1:
         if st.button("✅ Validate Systems & Establish Baseline", use_container_width=True):
             if s["baseline_score"] >= 40:
@@ -201,34 +222,24 @@ with tab1:
                 st.error("⚠️ Baseline Score too low. Map more systems before unlocking the Claims Engine.")
 
     with col_btn2:
-        # Value-Add Feature: Consultant Export
         csv_export = edited_df.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="📥 Download AI Readiness Report (CSV)",
-            data=csv_export,
-            file_name="AI_Readiness_Baseline_Report.csv",
-            mime="text/csv",
-            use_container_width=True
-        )
+        st.download_button("📥 Download AI Readiness Report (CSV)", data=csv_export, file_name="AI_Readiness_Baseline_Report.csv", mime="text/csv", use_container_width=True)
 
 # ==========================================
 # TAB 2: CLAIMS ENRICHMENT EXPLORER
 # ==========================================
 with tab2:
     st.header("Step 2: Actuarial Claims Ingestion")
-    
     if not s["connectors_validated"]:
         st.warning("🔒 **Data Pipeline Not Established.** Complete the AI Systems Baseline in Tab 1 to unlock this dataset.")
     else:
         st.success("✅ Baseline Approved. Analyzing 200-claim Loss Run with OSHA and Demographic dimensions.")
-        
         df_claims = s["claims_df"]
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Total Claims Processed", len(df_claims))
         c2.metric("Avg Incurred Cost", f"${df_claims['Incurred_Cost'].mean():,.2f}")
         c3.metric("Missing COI Flags", len(df_claims[df_claims['COI_Coverage_Valid'] == 'No']))
         c4.metric("Litigation Rate", f"{(len(df_claims[df_claims['Status'] == 'In Litigation']) / len(df_claims)) * 100:.1f}%")
-
         st.dataframe(df_claims, use_container_width=True, height=400)
 
 # ==========================================
@@ -236,12 +247,10 @@ with tab2:
 # ==========================================
 with tab3:
     st.header("Step 3: AI Gatekeeper Copilot")
-    
     if not s["connectors_validated"]:
          st.warning("🔒 **Data Pipeline Not Established.** Complete the AI Systems Baseline in Tab 1 to unlock the AI Copilot.")
     else:
         col_matrix, col_chat = st.columns([1, 2.2])
-        
         with col_matrix:
             st.markdown("### 🧬 Identity Matrix")
             st.markdown(f"""
@@ -279,8 +288,6 @@ with tab3:
                 
                 with st.chat_message("assistant"), st.status("TPRV Validating Identity...", expanded=True) as status:
                     time.sleep(1)
-                    
-                    # --- FIREWALL ---
                     if "🔴" in s["verified_status"] or "🔴" in s["verified_adp"] or "🔴" in s["verified_msp"] or "🔴" in s["verified_biddle"]:
                         st.error("🚨 ACCESS DENIED: A federated System of Record indicates invalid status. Prompt blocked.")
                         log_event("DENY", "SoR Kill Switch Activated")
@@ -311,13 +318,11 @@ with tab3:
                     log_event("ALLOW", "Actuarial Query Executed")
 
 # ==========================================
-# TAB 4: REVENUE IMPACT USE CASE
+# TAB 4, 5, 6: USE CASES
 # ==========================================
 with tab4:
     st.markdown("### 🏥 Provider Revenue Impact Calculator")
     st.write("Demonstrate the top-line revenue recovery for Healthcare Providers by overturning automated carrier denials using TPRV's immutable Trail of Evidence.")
-    
-    st.markdown("#### Baseline Parameters")
     col_in1, col_in2, col_in3 = st.columns(3)
     with col_in1: billed = st.slider("Total Annual Billed ($)", 1000000, 50000000, 10000000, 500000, "$%d")
     with col_in2: denial_rate = st.slider("Carrier Auto-Denial Rate (%)", 5, 40, 18, 1)
@@ -332,36 +337,19 @@ with tab4:
     col_out1.metric("Gross Revenue at Risk", f"${risk_revenue:,.0f}")
     col_out2.metric("Revenue Recovered via TPRV", f"${recovered:,.0f}", f"+{(recovered/billed)*100:.1f}% Margin Impact")
     col_out3.metric("Final Realized Revenue", f"${final_realized:,.0f}")
+    st.bar_chart(pd.DataFrame({"Scenario": ["Without TPRV", "With TPRV"], "Revenue": [base_realized, final_realized]}).set_index("Scenario"))
 
-    chart_data = pd.DataFrame({"Scenario": ["Without TPRV", "With TPRV"], "Revenue": [base_realized, final_realized]}).set_index("Scenario")
-    st.bar_chart(chart_data)
-
-# ==========================================
-# TAB 5: AUDIT READINESS USE CASE
-# ==========================================
 with tab5:
     st.markdown("### ⚖️ Litigation Defense & Claims Readiness")
-    st.write("Generate immutable trails of evidence combining HR compliance, Medical Billing, and AI activity logs to win legal cases and reverse insurance denials.")
-    
     if st.button("Generate Litigation Defense Packet (Claim: POL-10001)"):
-        with st.spinner("Compiling Evidence Trail..."):
-            time.sleep(1.5)
+        with st.spinner("Compiling Evidence Trail..."): time.sleep(1.5)
         st.success("Defense Packet Compiled Successfully")
         colA, colB = st.columns(2)
-        with colA:
-            st.markdown("#### 📄 Exhibit A: HR Validation Proof")
-            st.code(f"Human Identity: Validated\nAssigned Role: {s['verified_title']}\nAssigned Reviewer: {s['verified_reviewer']}\nADP Employment Status: {s['verified_adp']}\nEEO Audit Status: {s['verified_biddle']}")
-        with colB:
-            st.markdown("#### 🏥 Exhibit B: Cost of Health Evidence")
-            st.code("Claimant: David Lee\nInjury: Return-to-Work (Transitional)\nInsurance Billed: $15,258\nInsurance Approved: $13,573\nAutomated Denial Reason: CPT Code Mismatch\nTPRV AI Rebuttal: Medical necessity matched to ADA requirements.")
+        with colA: st.code(f"Human Identity: Validated\nAssigned Role: {s['verified_title']}\nAssigned Reviewer: {s['verified_reviewer']}\nADP Employment Status: {s['verified_adp']}\nEEO Audit Status: {s['verified_biddle']}")
+        with colB: st.code("Claimant: David Lee\nInjury: Return-to-Work (Transitional)\nInsurance Billed: $15,258\nInsurance Approved: $13,573\nAutomated Denial Reason: CPT Code Mismatch\nTPRV AI Rebuttal: Medical necessity matched to ADA requirements.")
 
-# ==========================================
-# TAB 6: UNDERWRITING ANALYTICS USE CASE
-# ==========================================
 with tab6:
     st.markdown("### 📋 Underwriting Stewardship & Premium Analytics")
-    st.write("Workers Compensation performance dashboard for Insurance Underwriters and CFOs.")
-
     if not s["connectors_validated"]:
         st.warning("🔒 **Data Pipeline Not Established.** Complete the AI Systems Baseline in Tab 1 to unlock analytics.")
     else:
@@ -370,14 +358,10 @@ with tab6:
         m1.metric("Total WC Claims", len(df), "Calculated from Baseline")
         m2.metric("Pharmacy Generic Fill Rate", "100%", "Industry benchmark: 85%", delta_color="normal")
         m3.metric("Total Incurred Risk Cost", f"${df['Incurred_Cost'].sum():,.0f}")
-
-        st.divider()
         col_trir, col_injury = st.columns(2)
         with col_trir:
             st.markdown("#### 📊 Litigation Distribution by Department")
-            lit_df = df[df['Status'] == 'In Litigation'].groupby('Department').size().reset_index(name='Count')
-            st.bar_chart(lit_df.set_index('Department'))
-
+            st.bar_chart(df[df['Status'] == 'In Litigation'].groupby('Department').size().reset_index(name='Count').set_index('Department'))
         with col_injury:
             st.markdown("#### 🩹 Top Injury Causes (% of All Claims)")
             st.bar_chart(pd.DataFrame({"Injury Cause": ["Strain/Overexertion", "Slip/Fall", "Ergonomic"], "Percentage": [45, 30, 25]}).set_index("Injury Cause"))
