@@ -5,7 +5,7 @@ import plotly.express as px
 import time
 from datetime import datetime
 import io
-import 
+import os 
 
 # v21 
 # Try to import OpenAI for the Live LLM integration
