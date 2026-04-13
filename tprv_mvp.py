@@ -5,7 +5,7 @@ import plotly.express as px
 import time
 from datetime import datetime
 import io
-import os 
+import os
 
 # v21 
 # Try to import OpenAI for the Live LLM integration
@@ -163,7 +163,17 @@ with tab1:
     st.markdown("Map core enterprise activities to current IT systems to establish your AI Status Rating.")
     
     # 121-Record Uploader
-    uploaded_file = st.file_uploader("Upload CSV to populate all 121 AI Topics (Optional)", type="csv")
+    csv_headers_help = """
+**Required CSV Headers:**
+* ROLE VALIDATION - AI TOPICS
+* OWNER
+* AUDIT ACTIVITY
+* REVIEWER
+* SYSTEM OF RECORD (Optional)
+* REVIEWER SYSTEM (Optional)
+* AI STATUS RATINGS (Optional)
+"""
+    uploaded_file = st.file_uploader("Upload CSV to populate all 121 AI Topics (Optional)", type="csv", help=csv_headers_help)
     if uploaded_file is not None and st.button("Load Custom CSV"):
         s["baseline_df"] = load_baseline_data(uploaded_file)
         st.rerun()
