@@ -7,7 +7,7 @@ from datetime import datetime
 import io
 import os
 
-# v21 
+# v22
 # Try to import OpenAI for the Live LLM integration
 try:
     from openai import OpenAI
@@ -16,7 +16,7 @@ except ImportError:
     OPENAI_AVAILABLE = False
 
 # --- PAGE CONFIG & STYLING ---
-st.set_page_config(page_title="Enterprise AI Risk Platform V21", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Enterprise AI Risk Platform V22", layout="wide", initial_sidebar_state="expanded")
 st.markdown("""<style>
 div.stButton > button:first-child { font-weight: 500; border: 1px solid #38bdf8; }
 .metric-box { background-color: #1e293b; padding: 15px; border-radius: 8px; border: 1px solid #334155; margin-bottom: 10px; }
@@ -57,48 +57,50 @@ def load_baseline_data(uploaded_file=None):
     # 2. Check if the 121-row CSV is in the local folder
     elif os.path.exists(local_file):
         df = pd.read_csv(local_file)
-    # 3. Fallback to embedded seed data (extracted from prompt snippets)
+    # 3. Fallback to embedded seed data (Updated with TEAMS PLAN and LOCATION for v22)
     else:
-        csv_data = """ROLE VALIDATION - AI TOPICS,OWNER,AUDIT ACTIVITY,REVIEWER
-Legal Entity Filings,Executive Management,Regulatory Reporting,Attorney
-Legal Entity Jurisdictions,Executive Management,Regulatory Reporting,Attorney
-Industry Benchmarks,Executive Management,Regulatory Reporting,Accountant
-Management Assertions,Executive Management,Regulatory Reporting,Auditor
-Risk Disclosures,Executive Management,Regulatory Reporting,Attorney
-Gross Revenue $,Finance,Regulatory Reporting,Accountant
-Asset $,Finance,Regulatory Reporting,Accountant
-Assets #,Finance,Regulatory Reporting,Accountant
-COGS Transactions #,Finance,Regulatory Reporting,Accountant
-Expenses $,Finance,Regulatory Reporting,Accountant
-Collateral $,Finance,Regulatory Reporting,Bank
-Loss Reserves $,Finance,Regulatory Reporting,Accountant
-Tax Audits,Finance,Know Your Customer,Auditor
-KYC - Banking Reviews,Finance,Know Your Customer,Bank
-KYC - Custody Reviews,Finance,Know Your Customer,Bank
-Records Retention Audits,Finance,Know Your Customer,Bank
-Employees with Healthcare Services Enrollments,Human Resources,Healthcare Services Reconciliation,Medical Services
-Medical Services - ICD 10 Codes,Risk Management,Healthcare Services Reconciliation,Medical Services
-Medical Services - NCCI Med Codes,Risk Management,Healthcare Services Reconciliation,Medical Services
-Medical Services Codes Reconciliation,Risk Management,Healthcare Services Reconciliation,Medical Services
-Medical Services Payments Reconciliation,Risk Management,Healthcare Services Reconciliation,Medical Services
-Injury Claims with Return To Work Plans,Human Resources,UW Stewardship,HR Admin
-Transitional Duty Job Descriptions,Human Resources,UW Stewardship,HR Admin
-Injury Claims with Transitional Duty Job Descriptions,Human Resources,UW Stewardship,HR Admin
-Incident Recovery Plans,Risk Management,UW Stewardship,Broker
-Incident Recovery Plan Activities,Risk Management,UW Stewardship,Broker
-Incident Recovery Plan Tests,Risk Management,UW Stewardship,Broker"""
+        csv_data = """ROLE VALIDATION - AI TOPICS,OWNER,AUDIT ACTIVITY,REVIEWER,TEAMS PLAN NAME,AI TOPIC OWNER LOCATION
+Legal Entity Filings,Executive Management,Regulatory Reporting,Attorney,Gov Reporting Plan,Harrisburg
+Legal Entity Jurisdictions,Executive Management,Regulatory Reporting,Attorney,Gov Reporting Plan,Harrisburg
+Industry Benchmarks,Executive Management,Regulatory Reporting,Accountant,Gov Reporting Plan,Harrisburg
+Management Assertions,Executive Management,Regulatory Reporting,Auditor,Gov Reporting Plan,Harrisburg
+Risk Disclosures,Executive Management,Regulatory Reporting,Attorney,Gov Reporting Plan,Harrisburg
+Gross Revenue $,Finance,Regulatory Reporting,Accountant,Gov Reporting Plan,Harrisburg
+Asset $,Finance,Regulatory Reporting,Accountant,Gov Reporting Plan,Harrisburg
+Assets #,Finance,Regulatory Reporting,Accountant,Gov Reporting Plan,Harrisburg
+COGS Transactions #,Finance,Regulatory Reporting,Accountant,Gov Reporting Plan,Harrisburg
+Expenses $,Finance,Regulatory Reporting,Accountant,Gov Reporting Plan,Harrisburg
+Collateral $,Finance,Regulatory Reporting,Bank,Gov Reporting Plan,Harrisburg
+Loss Reserves $,Finance,Regulatory Reporting,Accountant,Gov Reporting Plan,Harrisburg
+Tax Audits,Finance,Know Your Customer,Auditor,Gov Reporting Plan,Harrisburg
+KYC - Banking Reviews,Finance,Know Your Customer,Bank,Gov Reporting Plan,Harrisburg
+KYC - Custody Reviews,Finance,Know Your Customer,Bank,Gov Reporting Plan,Harrisburg
+Records Retention Audits,Finance,Know Your Customer,Bank,Gov Reporting Plan,Harrisburg
+Employees with Healthcare Services Enrollments,Human Resources,Healthcare Services Reconciliation,Medical Services,Healthcare Services Reconciliation Plan,Harrisburg
+Medical Services - ICD 10 Codes,Risk Management,Healthcare Services Reconciliation,Medical Services,Healthcare Services Reconciliation Plan,Harrisburg
+Medical Services - NCCI Med Codes,Risk Management,Healthcare Services Reconciliation,Medical Services,Healthcare Services Reconciliation Plan,Harrisburg
+Medical Services Codes Reconciliation,Risk Management,Healthcare Services Reconciliation,Medical Services,Healthcare Services Reconciliation Plan,Harrisburg
+Medical Services Payments Reconciliation,Risk Management,Healthcare Services Reconciliation,Medical Services,Healthcare Services Reconciliation Plan,Harrisburg
+Injury Claims with Return To Work Plans,Human Resources,UW Stewardship,HR Admin,Claims Resolution Plan,Harrisburg
+Transitional Duty Job Descriptions,Human Resources,UW Stewardship,HR Admin,Claims Resolution Plan,Harrisburg
+Injury Claims with Transitional Duty Job Descriptions,Human Resources,UW Stewardship,HR Admin,Claims Resolution Plan,Harrisburg
+Incident Recovery Plans,Risk Management,UW Stewardship,Broker,Incident Recovery Tests Plan,Harrisburg
+Incident Recovery Plan Activities,Risk Management,UW Stewardship,Broker,Incident Recovery Tests Plan,Harrisburg
+Incident Recovery Plan Tests,Risk Management,UW Stewardship,Broker,Incident Recovery Tests Plan,Harrisburg"""
         df = pd.read_csv(io.StringIO(csv_data))
     
     # Normalize schema
     if "SYSTEM OF RECORD" not in df.columns: df["SYSTEM OF RECORD"] = "Unmapped"
     if "REVIEWER SYSTEM" not in df.columns: df["REVIEWER SYSTEM"] = "Unmapped"
     if "AI STATUS RATINGS" not in df.columns: df["AI STATUS RATINGS"] = "Low"
+    if "TEAMS PLAN NAME" not in df.columns: df["TEAMS PLAN NAME"] = "Unassigned"
+    if "AI TOPIC OWNER LOCATION" not in df.columns: df["AI TOPIC OWNER LOCATION"] = "Unassigned"
     
     # Fill empty mappings
     df["SYSTEM OF RECORD"] = df["SYSTEM OF RECORD"].fillna("Unmapped")
     df["REVIEWER SYSTEM"] = df["REVIEWER SYSTEM"].fillna("Unmapped")
     
-    return df[["ROLE VALIDATION - AI TOPICS", "OWNER", "AUDIT ACTIVITY", "REVIEWER", "SYSTEM OF RECORD", "REVIEWER SYSTEM", "AI STATUS RATINGS"]]
+    return df[["ROLE VALIDATION - AI TOPICS", "OWNER", "AUDIT ACTIVITY", "REVIEWER", "TEAMS PLAN NAME", "AI TOPIC OWNER LOCATION", "SYSTEM OF RECORD", "REVIEWER SYSTEM", "AI STATUS RATINGS"]]
 
 # --- STATE MANAGEMENT ---
 if 'app_state' not in st.session_state:
@@ -149,7 +151,7 @@ with st.sidebar:
         st.rerun()
 
 # --- MAIN UI LAYOUT ---
-st.title("🛡️ Enterprise AI Risk Optimization Platform (v21)")
+st.title("🛡️ Enterprise AI Risk Optimization Platform (v22)")
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "1. AI Systems Baseline", "2. Claims Explorer", "3. AI Gatekeeper Copilot",
     "🏥 Revenue Impact", "⚖️ Audit Readiness", "📋 Underwriting Analytics"
@@ -162,13 +164,15 @@ with tab1:
     st.header("Step 1: AI Role Validation Baseline")
     st.markdown("Map core enterprise activities to current IT systems to establish your AI Status Rating.")
     
-    # 121-Record Uploader
+    # 121-Record Uploader (Updated Tooltip for v22)
     csv_headers_help = """
 **Required CSV Headers:**
 * ROLE VALIDATION - AI TOPICS
 * OWNER
 * AUDIT ACTIVITY
 * REVIEWER
+* TEAMS PLAN NAME
+* AI TOPIC OWNER LOCATION
 * SYSTEM OF RECORD (Optional)
 * REVIEWER SYSTEM (Optional)
 * AI STATUS RATINGS (Optional)
@@ -196,6 +200,8 @@ with tab1:
             "OWNER": st.column_config.Column(disabled=True),
             "AUDIT ACTIVITY": st.column_config.Column(disabled=True),
             "REVIEWER": st.column_config.Column(disabled=True),
+            "TEAMS PLAN NAME": st.column_config.Column(disabled=True),
+            "AI TOPIC OWNER LOCATION": st.column_config.Column(disabled=True),
             "SYSTEM OF RECORD": st.column_config.SelectboxColumn("SYSTEM OF RECORD", options=system_options, required=True),
             "REVIEWER SYSTEM": st.column_config.SelectboxColumn("REVIEWER SYSTEM", options=system_options, required=True),
             "AI STATUS RATINGS": st.column_config.Column(disabled=True)
